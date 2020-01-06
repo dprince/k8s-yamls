@@ -4,14 +4,15 @@ K8s YAMLs
 Description
 -----------
 
-Some Yamls I created to mock up RDO services for OpenStack on OpenShift. These are currently hard coded to my environment and meant to act as a POC only.
-
+Some Yamls I created to mock up RDO services for OpenStack on OpenShift. These are currently hard coded to my environment and meant to act as a POC only. Some of the services are single Pod implementations (MariaDB, RabbitMQ) which ignore clustering aspects entirely and are for dev only ATM. A stateful set might work better there as a next step.
 
 Target Environment
 ------------------
 
 Baremetal OpenShift 4.2 install.
+
 Three OpenShift masters: dell0, dell1, dell2
+
 Two OpenShift workers:  nuc1, nuc2 (what happened to nuc0!?)
 
 The templates are using local directories on nuc1 for storage ATM (until I get a proper cloud storage setup). This means there are some hard coded aspects regarding the storage parts.
