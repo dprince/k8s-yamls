@@ -40,6 +40,7 @@ data:
              {linger,        {true, 0}},
              {exit_on_close, false}
         ]},
+        {tcp_listeners, [{"0.0.0.0", 5672}]},
         {log, [
             {console, [{enabled, true},
                        {level, info}
