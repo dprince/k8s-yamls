@@ -1,0 +1,203 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neutron
+data:
+  config.json: |
+    {
+        "command": "/usr/bin/neutron-server --config-file /usr/share/neutron/neutron-dist.conf --config-dir /usr/share/neutron/server --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini --config-dir /etc/neutron/conf.d/common --config-dir /etc/neutron/conf.d/neutron-server",
+        "config_files": [
+            {
+                "source": "/var/lib/config-data/neutron.conf",
+                "dest": "/etc/neutron/neutron.conf",
+                "owner": "neutron",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/ml2_conf.ini",
+                "dest": "/etc/neutron/plugins/ml2/ml2_conf.ini",
+                "owner": "neutron",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/ml2_conf.ini",
+                "dest": "/etc/neutron/plugin.ini",
+                "owner": "neutron",
+                "perm": "0600"
+            }
+        ]
+    }
+  neutron.conf: |
+    [DEFAULT]
+    debug=True
+    transport_url=rabbit://guest:yQ7ot2HdFDAG9q6VSim6a87VW@openstack-rabbitmq:5672/?ssl=0
+    control_exchange=neutron
+    #bind_host=192.168.127.200
+    auth_strategy=keystone
+    core_plugin=ml2
+    host=localhost.localdomain
+    dns_domain=localdomain
+    dhcp_agent_notification=True
+    allow_overlapping_ips=True
+    global_physnet_mtu=1500
+    vlan_transparent=False
+    service_plugins=qos,router,trunk
+    notify_nova_on_port_status_changes=True
+    notify_nova_on_port_data_changes=True
+    l3_ha=False
+    max_l3_agents_per_router=3
+    api_workers=3
+    rpc_workers=3
+    router_scheduler_driver=neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+    allow_automatic_l3agent_failover=True
+    [database]
+    connection=mysql+pymysql://neutron:foobar123@openstack-db-mariadb/neutron
+    max_retries=-1
+    db_max_retries=-1
+    [keystone_authtoken]
+    www_authenticate_uri=http://example-test.apps.test.dprince/
+    auth_uri=http://example-test.apps.test.dprince/
+    auth_type=password
+    auth_url=http://example-test.apps.test.dprince/
+    username=neutron
+    password=CAspTtEy7vjtzbpvPLJThLJ4b
+    user_domain_name=Default
+    project_name=service
+    project_domain_name=Default
+    
+    [oslo_concurrency]
+    lock_path=$state_path/lock
+    
+    [oslo_messaging_notifications]
+    driver=messagingv2
+    transport_url=rabbit://guest:yQ7ot2HdFDAG9q6VSim6a87VW@openstack-rabbitmq:5672/?ssl=0
+    
+    [oslo_policy]
+    policy_file=/etc/neutron/policy.json
+    
+    [agent]
+    root_helper=sudo neutron-rootwrap /etc/neutron/rootwrap.conf
+    
+    [nova]
+    auth_url=http://example-test.apps.test.dprince/
+    username=nova
+    password=BbPjIK5tHo6lxf1zo3oOn5IEZ
+    project_domain_id=default
+    project_domain_name=Default
+    project_name=service
+    user_domain_id=default
+    user_domain_name=Default
+    endpoint_type=internal
+    auth_type=password
+    tenant_name=service
+    
+    [quotas]
+    quota_port=500
+    quota_firewall_rule=-1
+    quota_network_gateway=5
+    quota_packet_filter=100
+  ml2_conf.ini: |
+    [ml2]
+    type_drivers=geneve,vlan,flat
+    tenant_network_types=geneve
+    mechanism_drivers=openvswitch
+    path_mtu=0
+    extension_drivers=qos,port_security
+    overlay_ip_version=4
+    
+    [securitygroup]
+    firewall_driver=iptables_hybrid
+    
+    [ml2_type_geneve]
+    max_header_size=38
+    vni_ranges=1:65536
+    
+    [ml2_type_vlan]
+    network_vlan_ranges=datacentre:1:1000
+    
+    [ml2_type_flat]
+    flat_networks=datacentre
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: neutron
+  labels:
+    app: openstack-neutron
+spec:
+  containers:
+  - name: neutron-server
+    image: docker.io/tripleomaster/centos-binary-neutron-server:current-tripleo
+    #user: root
+    #command: ['/bin/sleep', '720']
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+    - mountPath: /var/lib/kolla/config_files
+      readOnly: true
+      name: kolla-config
+    env:
+    - name: KOLLA_CONFIG_STRATEGY
+      value: COPY_ALWAYS
+  volumes:
+  - name: kolla-config
+    configMap:
+      name: neutron
+      items:
+        - key: config.json
+          path: config.json
+  - name: config-data
+    configMap:
+      name: neutron
+      items:
+        - key: neutron.conf
+          path: neutron.conf
+        - key: ml2_conf.ini
+          path: ml2_conf.ini
+  initContainers:
+  - name: drop-neutron
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "DROP DATABASE IF EXISTS neutron";'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: neutron-db-create
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS neutron; GRANT ALL PRIVILEGES ON neutron.* TO ''neutron''@''localhost'' IDENTIFIED BY ''foobar123'';GRANT ALL PRIVILEGES ON neutron.* TO ''neutron''@''%'' IDENTIFIED BY ''foobar123''; "'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: neutron-db-sync
+    image: docker.io/tripleomaster/centos-binary-neutron-server:current-tripleo
+    #user: root
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+    - mountPath: /var/lib/kolla/config_files
+      readOnly: true
+      name: kolla-config
+    env:
+    - name: KOLLA_CONFIG_STRATEGY
+      value: COPY_ALWAYS
+    - name: KOLLA_BOOTSTRAP
+      value: 'True'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstack-neutron
+spec:
+  selector:
+    app: openstack-neutron
+  ports:
+    - protocol: TCP
+      port: 9696
+      targetPort: 9696
