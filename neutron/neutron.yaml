@@ -32,7 +32,6 @@ data:
     debug=True
     transport_url=rabbit://guest:yQ7ot2HdFDAG9q6VSim6a87VW@openstack-rabbitmq:5672/?ssl=0
     control_exchange=neutron
-    #bind_host=192.168.127.200
     auth_strategy=keystone
     core_plugin=ml2
     host=localhost.localdomain
@@ -55,10 +54,10 @@ data:
     max_retries=-1
     db_max_retries=-1
     [keystone_authtoken]
-    www_authenticate_uri=http://example-test.apps.test.dprince/
-    auth_uri=http://example-test.apps.test.dprince/
+    www_authenticate_uri=http://keystone-test.apps.test.dprince/
+    auth_uri=http://keystone-test.apps.test.dprince/
     auth_type=password
-    auth_url=http://example-test.apps.test.dprince/
+    auth_url=http://keystone-test.apps.test.dprince/
     username=neutron
     password=CAspTtEy7vjtzbpvPLJThLJ4b
     user_domain_name=Default
@@ -79,7 +78,7 @@ data:
     root_helper=sudo neutron-rootwrap /etc/neutron/rootwrap.conf
     
     [nova]
-    auth_url=http://example-test.apps.test.dprince/
+    auth_url=http://keystone-test.apps.test.dprince/
     username=nova
     password=BbPjIK5tHo6lxf1zo3oOn5IEZ
     project_domain_id=default
