@@ -127,8 +127,6 @@ spec:
   containers:
   - name: neutron-server
     image: docker.io/tripleomaster/centos-binary-neutron-server:current-tripleo
-    #user: root
-    #command: ['/bin/sleep', '720']
     volumeMounts:
     - mountPath: /var/lib/config-data
       readOnly: true
@@ -175,7 +173,6 @@ spec:
       value: foobar123
   - name: neutron-db-sync
     image: docker.io/tripleomaster/centos-binary-neutron-server:current-tripleo
-    #user: root
     volumeMounts:
     - mountPath: /var/lib/config-data
       readOnly: true
