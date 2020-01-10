@@ -39,8 +39,19 @@ Keystone
 --------
 Outdated. This is now supplanted by: https://github.com/openstack-k8s-operators/keystone-operator
 
+Glance
+------
+Single Pod Glance API
+
+To install:
+1. oc create -f glance/glance.yaml
+
 Neutron
 -------
+neutron-server just requires a DB and a connection to rabbitmq.
+
+To install:
+1. oc create -f neutron/neutron.yaml
 
 Nova
 ----
