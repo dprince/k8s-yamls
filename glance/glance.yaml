@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance
+data:
+  config.json: |
+    {
+        "command": "/usr/bin/glance-api --config-file /etc/glance/glance-api.conf --config-file /etc/glance/glance-image-import.conf",
+        "config_files": [
+            {
+                "source": "/var/lib/config-data/glance-api.conf",
+                "dest": "/etc/glance/glance-api.conf",
+                "owner": "glance",
+                "perm": "0600"
+            }
+        ]
+    }
+  glance-api.conf: |
+    [DEFAULT]
+    verbose=True
+    show_image_direct_url=True
+    enable_v2_api=True
+    node_staging_uri=file:///var/lib/glance/staging
+    enabled_import_methods=[web-download]
+    bind_host=0.0.0.0
+    bind_port=9292
+    workers=3
+    image_cache_dir=/var/lib/glance/image-cache
+    registry_host=0.0.0.0
+    transport_url=rabbit://guest:yQ7ot2HdFDAG9q6VSim6a87VW@openstack-rabbitmq:5672/?ssl=0
+    enable_v1_api=False
+    [database]
+    connection=mysql+pymysql://glance:foobar123@openstack-db-mariadb/glance
+    [file]
+    filesystem_store_datadir = /var/lib/glance/images
+    [glance_store]
+    enabled_backends=file
+    default_backend=file
+    
+    [keystone_authtoken]
+    www_authenticate_uri=http://keystone-test.apps.test.dprince/
+    auth_uri=http://keystone-test.apps.test.dprince/
+    auth_type=password
+    auth_url=http://keystone-test.apps.test.dprince/
+    username=glance
+    password=OpawwFpgJXHr6QiB7W1X6EERn
+    user_domain_name=Default
+    project_name=service
+    project_domain_name=Default
+    
+    [oslo_messaging_notifications]
+    driver=messagingv2
+    transport_url=rabbit://guest:yQ7ot2HdFDAG9q6VSim6a87VW@openstack-rabbitmq:5672/?ssl=0
+    
+    [oslo_middleware]
+    enable_proxy_headers_parsing=True
+    
+    [oslo_policy]
+    policy_file=/etc/glance/policy.json
+     
+    [paste_deploy]
+    config_file = /usr/share/glance/glance-api-dist-paste.ini
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: glance
+  labels:
+    app: openstack-glance
+spec:
+  containers:
+  - name: glance-api
+    image: docker.io/tripleomaster/centos-binary-glance-api:current-tripleo
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+    - mountPath: /var/lib/kolla/config_files
+      readOnly: true
+      name: kolla-config
+    env:
+    - name: KOLLA_CONFIG_STRATEGY
+      value: COPY_ALWAYS
+  volumes:
+  - name: kolla-config
+    configMap:
+      name: glance
+      items:
+        - key: config.json
+          path: config.json
+  - name: config-data
+    configMap:
+      name: glance
+      items:
+        - key: glance-api.conf
+          path: glance-api.conf
+  initContainers:
+  - name: drop-glance
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "DROP DATABASE IF EXISTS glance";'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: glance-db-create
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS glance; GRANT ALL PRIVILEGES ON glance.* TO ''glance''@''localhost'' IDENTIFIED BY ''foobar123'';GRANT ALL PRIVILEGES ON glance.* TO ''glance''@''%'' IDENTIFIED BY ''foobar123''; "'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: glance-db-sync
+    image: docker.io/tripleomaster/centos-binary-glance-api:current-tripleo
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+    - mountPath: /var/lib/kolla/config_files
+      readOnly: true
+      name: kolla-config
+    env:
+    - name: KOLLA_CONFIG_STRATEGY
+      value: COPY_ALWAYS
+    - name: KOLLA_BOOTSTRAP
+      value: 'True'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstack-glance
+spec:
+  selector:
+    app: openstack-glance
+  ports:
+    - protocol: TCP
+      port: 9292
+      targetPort: 9292
