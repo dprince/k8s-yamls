@@ -1,0 +1,55 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: cdi-dell0
+provisioner: kubernetes.io/no-provisioner
+#volumeBindingMode: WaitForFirstConsumer
+#volumeBindingMode: Immediate
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: cdi-dell0-0
+spec:
+  storageClassName: cdi-dell0
+  capacity:
+    storage: 30G
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  local:
+    path: "/var/lib/cdi"
+    type: DirectoryOrCreate
+  volumeMode: Filesystem
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - dell0
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: cdi-dell0-1
+spec:
+  storageClassName: cdi-dell0
+  capacity:
+    storage: 30G
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  local:
+    path: "/var/lib/cdi1"
+    type: DirectoryOrCreate
+  volumeMode: Filesystem
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - dell0

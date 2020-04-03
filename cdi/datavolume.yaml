@@ -1,0 +1,14 @@
+apiVersion: cdi.kubevirt.io/v1alpha1
+kind: DataVolume
+metadata:
+  name: upload-datavolume
+spec:
+  source:
+      upload: {}
+  pvc:
+    storageClassName: cdi-dell0
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 30G

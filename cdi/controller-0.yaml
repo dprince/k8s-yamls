@@ -1,0 +1,52 @@
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachine
+metadata:
+  name: controller-0
+spec:
+  running: true
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: upload-datavolume
+          - disk:
+              bus: virtio
+            name: cloudinitvolume
+          interfaces:
+            - bridge: {}
+              name: default
+            - bridge: {}
+              name: ctlplane
+              macAddress: 00:14:cd:2b:c8:21
+        machine:
+          type: ""
+        resources:
+          requests:
+            memory: 9G
+            cpu: 1
+          overcommitGuestOverhead: true
+      terminationGracePeriodSeconds: 0
+      networks:
+      - name: default
+        pod: {}
+      - multus:
+          networkName: ctlplane
+        name: ctlplane
+      volumes:
+      - persistentVolumeClaim:
+          claimName: upload-datavolume
+        name: upload-datavolume
+      - name: cloudinitvolume
+        cloudInitConfigDrive:
+          userData: |
+            #cloud-config
+            password: redhat123
+            lock_passwd: false
+            chpasswd: { expire: False }
+            disable_root: false
+            ssh_pwauth: True
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA+yNMzUrQXa0EOfv+WJtfmLO1WdoOaD47G9qwllSUc4GPRkYzkTNdxcEPrR3XBR94ctOeWOHZ/w7ymhvwK5LLsoNBK+WgRz/mg8oHcii2GoL0fNojdwUMyFMIJxJT+iwjF/omyhyrW/aLAztAKRO7BdOkNlXMAAcMxKzQtFqdZm09ghoImu3BPYUTyDKHMp+t0P1d7mkHdd719oDfMf+5miHxQeJZJCWAsGwroN7k8a46rvezDHEygBsDAF2ZpS2iGMABos/vTp1oyHkCgCqc3rM0OoKqcKB5iQ9Qaqi5ung08BXP/PHfVynXzdGMjTh4w+6jiMw7Dx2GrQIJsDolKQ== dan.prince@dovetail
