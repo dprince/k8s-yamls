@@ -1,4 +1,16 @@
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq
+spec:
+  storageClassName: host-nfs-storageclass
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1G
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rabbitmq
@@ -32,7 +44,6 @@ data:
   rabbitmq.config: |
     [
       {rabbit, [
-        {loopback_users, [<<"guest">>]},
         {tcp_listen_options, [
              {keepalive,     true},
              {backlog,       128},
@@ -48,10 +59,10 @@ data:
         ]},
         {collect_statistics_interval, 30000},
         {cluster_partition_handling, ignore},
-        {loopback_users, []},
         {queue_master_locator, <<"min-masters">>},
+        {loopback_users, []},
         {default_user, <<"guest">>},
-        {default_pass, <<"yQ7ot2HdFDAG9q6VSim6a87VW">>}
+        {default_pass, <<"guest">>}
       ]},
       {kernel, [
         {inet_dist_listen_max, 25672},
@@ -86,7 +97,8 @@ metadata:
 spec:
   containers:
   - name: rabbitmq
-    image: docker.io/tripleomaster/centos-binary-rabbitmq:current-tripleo
+    #image: docker.io/tripleomaster/centos-binary-rabbitmq:current-tripleo
+    image: quay.io/tripleomaster/openstack-rabbitmq:current-tripleo
     #user: root
     #command: ['/bin/sleep', '720']
     volumeMounts:
@@ -121,7 +133,8 @@ spec:
       claimName: rabbitmq
   initContainers:
   - name: rabbitmq-init
-    image: docker.io/tripleomaster/centos-binary-rabbitmq:current-tripleo
+    image: quay.io/tripleomaster/openstack-rabbitmq:current-tripleo
+    #image: docker.io/tripleomaster/centos-binary-rabbitmq:current-tripleo
     #user: root
     #command: ['/bin/sleep', '720']
     volumeMounts:

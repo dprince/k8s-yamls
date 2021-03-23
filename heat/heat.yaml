@@ -1,0 +1,321 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: heat
+data:
+  config.json: |
+    {
+        "command": "/usr/bin/heat-api --config-file /etc/heat/heat.conf",
+        "config_files": [
+            {
+                "source": "/var/lib/config-data/heat.conf",
+                "dest": "/etc/heat/heat.conf",
+                "owner": "heat",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/paste.ini",
+                "dest": "/etc/heat/paste.ini",
+                "owner": "heat",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/token.json",
+                "dest": "/etc/heat/token.json",
+                "owner": "heat",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/noauth.policy",
+                "dest": "/etc/heat/noauth.policy",
+                "owner": "heat",
+                "perm": "0600"
+            }
+        ]
+    }
+  config-engine.json: |
+    {
+        "command": "/usr/bin/heat-engine --config-file /etc/heat/heat.conf",
+        "config_files": [
+            {
+                "source": "/var/lib/config-data/heat.conf",
+                "dest": "/etc/heat/heat.conf",
+                "owner": "heat",
+                "perm": "0600"
+            },
+            {
+                "source": "/var/lib/config-data/noauth.policy",
+                "dest": "/etc/heat/noauth.policy",
+                "owner": "heat",
+                "perm": "0600"
+            }
+        ]
+    }
+  heat.conf: |
+    [DEFAULT]
+    debug=True
+    verbose=True
+    transport_url=rabbit://guest:guest@openstack-rabbitmq:5672/?ssl=0
+    api_workers=3
+    rpc_workers=3
+    keystone_backend=heat.engine.clients.os.keystone.fake_keystoneclient.FakeKeystoneClient
+    deferred_auth_method=password
+    max_nested_stack_depth=10
+    max_json_body_size=8388608
+    default_deployment_signal_transport=HEAT_SIGNAL
+    [database]
+    connection=mysql+pymysql://heat:foobar123@openstack-db-mariadb/heat
+    max_retries=-1
+    db_max_retries=-1
+    [paste_deploy]
+    flavor=noauth
+    api_paste_config=paste.ini
+    [oslo_policy]
+    policy_file=/etc/heat/noauth.policy
+    [yaql]
+    memory_quota=900000
+    limit_iterators=9000
+    [noauth]
+    token_response=/etc/heat/token.json
+  paste.ini: |
+    [pipeline:heat-api-noauth]
+    pipeline = faultwrap noauth context versionnegotiation apiv1app
+    [app:apiv1app]
+    paste.app_factory = heat.common.wsgi:app_factory
+    heat.app_factory = heat.api.openstack.v1:API
+    [filter:noauth]
+    paste.filter_factory = heat.common.noauth:filter_factory
+    [filter:context]
+    paste.filter_factory = heat.common.context:ContextMiddleware_filter_factory
+    [filter:versionnegotiation]
+    paste.filter_factory = heat.common.wsgi:filter_factory
+    heat.filter_factory = heat.api.openstack:version_negotiation_filter
+    [filter:faultwrap]
+    paste.filter_factory = heat.common.wsgi:filter_factory
+    heat.filter_factory = heat.api.openstack:faultwrap_filter
+  token.json: |
+    {"token": {"is_domain": false, "methods": ["password"], "roles": [{"id": "4c8de39b96794ab28bf37a0b842b8bc8", "name": "admin"}], "expires_at": "2021-03-21T19:51:40.311005", "project": {"domain": {"id": "default", "name": "Default"}, "id": "admin", "name": "admin"}, "catalog": [{"endpoints": [{"url": "http://openstack-heat:8004/v1/admin", "interface": "public", "region": "regionOne", "region_id": "regionOne", "id": "2809305628004fb391b3d0254fb5b4f7"}, {"url": "http://openstack-heat:8004/v1/admin", "interface": "internal", "region": "regionOne", "region_id": "regionOne", "id": "2809305628004fb391b3d0254fb5b4f7"}, {"url": "http://openstack-heat:8004/v1/admin", "interface": "admin", "region": "regionOne", "region_id": "regionOne", "id": "2809305628004fb391b3d0254fb5b4f7"}], "type": "orchestration", "id": "96a549e3961d45cabe883dd17c5835be", "name": "heat"}, {"endpoints": [{"url": "http://openstack-heat/v3", "interface": "public", "region": "regionOne", "region_id": "regionOne", "id": "eca215878e404a2d9dcbcc7f6a027165"}, {"url": "http://openstack-heat/v3", "interface": "internal", "region": "regionOne", "region_id": "regionOne", "id": "eca215878e404a2d9dcbcc7f6a027165"}, {"url": "http://openstack-heat/v3", "interface": "admin", "region": "regionOne", "region_id": "regionOne", "id": "eca215878e404a2d9dcbcc7f6a027165"}], "type": "identity", "id": "a785f0b7603042d1bf59237c71af2f15", "name": "keystone"}], "user": {"domain": {"id": "default", "name": "Default"}, "id": "8b7b4c094f934e8c83aa7fe12591dc6c", "name": "admin"}, "audit_ids": ["F6ONJ8fCT6i_CFTbmC0vBA"], "issued_at": "2021-03-19T19:51:40.311017"}}
+  noauth.policy: |
+    {
+    "context_is_admin":  "@",
+    "deny_stack_user": "@",
+    "deny_everybody": "@",
+
+    "cloudformation:ListStacks": "rule:deny_stack_user",
+    "cloudformation:CreateStack": "rule:deny_stack_user",
+    "cloudformation:DescribeStacks": "rule:deny_stack_user",
+    "cloudformation:DeleteStack": "rule:deny_stack_user",
+    "cloudformation:UpdateStack": "rule:deny_stack_user",
+    "cloudformation:CancelUpdateStack": "rule:deny_stack_user",
+    "cloudformation:DescribeStackEvents": "rule:deny_stack_user",
+    "cloudformation:ValidateTemplate": "rule:deny_stack_user",
+    "cloudformation:GetTemplate": "rule:deny_stack_user",
+    "cloudformation:EstimateTemplateCost": "rule:deny_stack_user",
+    "cloudformation:DescribeStackResource": "",
+    "cloudformation:DescribeStackResources": "rule:deny_stack_user",
+    "cloudformation:ListStackResources": "rule:deny_stack_user",
+
+    "cloudwatch:DeleteAlarms": "rule:deny_stack_user",
+    "cloudwatch:DescribeAlarmHistory": "rule:deny_stack_user",
+    "cloudwatch:DescribeAlarms": "rule:deny_stack_user",
+    "cloudwatch:DescribeAlarmsForMetric": "rule:deny_stack_user",
+    "cloudwatch:DisableAlarmActions": "rule:deny_stack_user",
+    "cloudwatch:EnableAlarmActions": "rule:deny_stack_user",
+    "cloudwatch:GetMetricStatistics": "rule:deny_stack_user",
+    "cloudwatch:ListMetrics": "rule:deny_stack_user",
+    "cloudwatch:PutMetricAlarm": "rule:deny_stack_user",
+    "cloudwatch:PutMetricData": "",
+    "cloudwatch:SetAlarmState": "rule:deny_stack_user",
+
+    "actions:action": "rule:deny_stack_user",
+    "build_info:build_info": "rule:deny_stack_user",
+    "events:index": "rule:deny_stack_user",
+    "events:show": "rule:deny_stack_user",
+    "resource:index": "rule:deny_stack_user",
+    "resource:metadata": "",
+    "resource:signal": "",
+    "resource:mark_unhealthy": "rule:deny_stack_user",
+    "resource:show": "rule:deny_stack_user",
+    "stacks:abandon": "rule:deny_stack_user",
+    "stacks:create": "rule:deny_stack_user",
+    "stacks:delete": "rule:deny_stack_user",
+    "stacks:detail": "rule:deny_stack_user",
+    "stacks:export": "rule:deny_stack_user",
+    "stacks:generate_template": "rule:deny_stack_user",
+    "stacks:global_index": "rule:deny_everybody",
+    "stacks:index": "rule:deny_stack_user",
+    "stacks:list_resource_types": "rule:deny_stack_user",
+    "stacks:list_template_versions": "rule:deny_stack_user",
+    "stacks:list_template_functions": "rule:deny_stack_user",
+    "stacks:lookup": "",
+    "stacks:preview": "rule:deny_stack_user",
+    "stacks:resource_schema": "rule:deny_stack_user",
+    "stacks:show": "rule:deny_stack_user",
+    "stacks:template": "rule:deny_stack_user",
+    "stacks:environment": "rule:deny_stack_user",
+    "stacks:files": "rule:deny_stack_user",
+    "stacks:update": "rule:deny_stack_user",
+    "stacks:update_patch": "rule:deny_stack_user",
+    "stacks:preview_update": "rule:deny_stack_user",
+    "stacks:preview_update_patch": "rule:deny_stack_user",
+    "stacks:validate_template": "rule:deny_stack_user",
+    "stacks:snapshot": "rule:deny_stack_user",
+    "stacks:show_snapshot": "rule:deny_stack_user",
+    "stacks:delete_snapshot": "rule:deny_stack_user",
+    "stacks:list_snapshots": "rule:deny_stack_user",
+    "stacks:restore_snapshot": "rule:deny_stack_user",
+    "stacks:list_outputs": "rule:deny_stack_user",
+    "stacks:show_output": "rule:deny_stack_user",
+
+
+    "software_configs:global_index": "rule:deny_everybody",
+    "software_configs:index": "rule:deny_stack_user",
+    "software_configs:create": "rule:deny_stack_user",
+    "software_configs:show": "rule:deny_stack_user",
+    "software_configs:delete": "rule:deny_stack_user",
+    "software_deployments:index": "rule:deny_stack_user",
+    "software_deployments:create": "rule:deny_stack_user",
+    "software_deployments:show": "rule:deny_stack_user",
+    "software_deployments:update": "rule:deny_stack_user",
+    "software_deployments:delete": "rule:deny_stack_user",
+    "software_deployments:metadata": "",
+
+    "service:index": "rule:context_is_admin",
+
+    "resource_types:OS::Nova::Flavor": "rule:context_is_admin",
+    "resource_types:OS::Cinder::EncryptedVolumeType": "rule:context_is_admin",
+    "resource_types:OS::Cinder::VolumeType": "rule:context_is_admin",
+    "resource_types:OS::Manila::ShareType": "rule:context_is_admin",
+    "resource_types:OS::Neutron::QoSPolicy": "rule:context_is_admin",
+    "resource_types:OS::Neutron::QoSBandwidthLimitRule": "rule:context_is_admin",
+    "resource_types:OS::Nova::HostAggregate": "rule:context_is_admin"
+    }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: heat-api
+  labels:
+    app: openstack-heat
+spec:
+  containers:
+  - name: heat-api
+    #image: docker.io/tripleomaster/centos-binary-heat-api:current-tripleo
+    image: quay.io/tripleomaster/openstack-heat-api:current-tripleo
+    #command: ['/bin/sleep', '720']
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+    - mountPath: /var/lib/kolla/config_files
+      readOnly: true
+      name: kolla-config
+    env:
+    - name: KOLLA_CONFIG_STRATEGY
+      value: COPY_ALWAYS
+  volumes:
+  - name: kolla-config
+    configMap:
+      name: heat
+      items:
+        - key: config.json
+          path: config.json
+  - name: config-data
+    configMap:
+      name: heat
+      items:
+        - key: heat.conf
+          path: heat.conf
+        - key: paste.ini
+          path: paste.ini
+        - key: token.json
+          path: token.json
+        - key: noauth.policy
+          path: noauth.policy
+  initContainers:
+  - name: drop-heat
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "DROP DATABASE IF EXISTS heat";'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: heat-db-create
+    image: docker.io/tripleomaster/centos-binary-mariadb:current-tripleo
+    command:
+    - 'sh'
+    - '-c'
+    - 'mysql -h openstack-db-mariadb -u root -P 3306 -e "CREATE DATABASE IF NOT EXISTS heat; GRANT ALL PRIVILEGES ON heat.* TO ''heat''@''localhost'' IDENTIFIED BY ''foobar123'';GRANT ALL PRIVILEGES ON heat.* TO ''heat''@''%'' IDENTIFIED BY ''foobar123''; "'
+    env:
+    - name: MYSQL_PWD
+      value: foobar123
+  - name: heat-db-sync
+    command: ['/usr/bin/heat-manage', '--config-file', '/var/lib/config-data/heat.conf', 'db_sync']
+    #image: docker.io/tripleomaster/centos-binary-heat-api:current-tripleo
+    image: quay.io/tripleomaster/openstack-heat-api:current-tripleo
+    volumeMounts:
+    - mountPath: /var/lib/config-data
+      readOnly: true
+      name: config-data
+---
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: heat-engine
+  labels:
+    app: openstack-heat
+spec:
+  replicas: 3
+  template:
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+      - name: heat-api
+        #image: docker.io/tripleomaster/centos-binary-heat-engine:current-tripleo
+        image: quay.io/tripleomaster/openstack-heat-engine:current-tripleo
+        #command: ['/bin/sleep', '720']
+        volumeMounts:
+        - mountPath: /var/lib/config-data
+          readOnly: true
+          name: config-data
+        - mountPath: /var/lib/kolla/config_files
+          readOnly: true
+          name: kolla-config
+        env:
+        - name: KOLLA_CONFIG_STRATEGY
+          value: COPY_ALWAYS
+      volumes:
+      - name: kolla-config
+        configMap:
+          name: heat
+          items:
+            - key: config-engine.json
+              path: config.json
+      - name: config-data
+        configMap:
+          name: heat
+          items:
+            - key: heat.conf
+              path: heat.conf
+            - key: noauth.policy
+              path: noauth.policy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstack-heat
+spec:
+  selector:
+    app: openstack-heat
+  ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
